@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+
+
+    <camelContext id="weathermap" xmlns="http://camel.apache.org/schema/spring" trace="false">
+        <dataFormats>
+            <xmljson id="xmljson"/>
+        </dataFormats>
+        <route id="weatherRoute">
+            <from uri="jetty:http://localhost:8081/weathermap/"/>
+            <unmarshal ref="xmljson"/>
+            <setHeader headerName="city">
+                <xpath resultType="java.lang.String">//city</xpath>
+            </setHeader>
+            <setHeader headerName="name">
+                <xpath resultType="java.lang.String">//name</xpath>
+            </setHeader>
+            <log message="${header.name} wants to go to ${header.city}"/>
+            <setHeader headerName="CamelHttpPath">
+                <simple>data/2.5/find?q=${header.city}&amp;units=metric&amp;mode=xml</simple>
+            </setHeader>
+            <setHeader headerName="CamelHttpMethod">
+                <constant>GET</constant>
+            </setHeader>
+            <to uri="jetty:http://api.openweathermap.org/?bridgeEndpoint=true"/>
+            <convertBodyTo type="java.lang.String"/>
+            <setHeader headerName="count">
+                <xpath resultType="java.lang.String">//count</xpath>
+            </setHeader>
+            <setHeader headerName="temperature">
+                <xpath resultType="java.lang.String">//temperature/@value</xpath>
+            </setHeader>
+            <to uri="xslt:weather2booking.xsl"/>
+            <choice>
+                <when>
+                    <simple>${header.count} != 1</simple>
+                    <setHeader headerName="CamelHttpResponseCode">
+                        <constant>400</constant>
+                    </setHeader>
+                    <setBody>
+                        <constant>{"message": "city not found"}</constant>
+                    </setBody>
+                </when>
+                <when>
+                    <simple>${header.temperature} > 20</simple>
+                    <inOnly uri="activemq:beach"/>
+                    <setBody>
+                        <constant>{"message": "Enjoy the sun!"}</constant>
+                    </setBody>
+                </when>
+                <when>
+                    <simple>${header.temperature} &lt; 20</simple>
+                    <inOnly uri="activemq:ski"/>
+                    <setBody>
+                        <constant>{"message": "You go skiing!"}</constant>
+                    </setBody>
+                </when>
+                <otherwise>
+                    <setBody>
+                        <constant>{"message": "something went wrong."}</constant>
+                    </setBody>
+                </otherwise>
+            </choice>
+        </route>
+    </camelContext>
+
+    <bean id="activemq" class="org.apache.activemq.ActiveMQConnectionFactory">
+        <property name="brokerURL" value="tcp://localhost:61616"/>
+    </bean>
+    
+</beans>
