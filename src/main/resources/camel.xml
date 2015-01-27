@@ -30,9 +30,6 @@
             <setHeader headerName="count">
                 <xpath resultType="java.lang.String">//count</xpath>
             </setHeader>
-            <setHeader headerName="temperature">
-                <xpath resultType="java.lang.String">//temperature/@value</xpath>
-            </setHeader>
             <to uri="xslt:weather2booking.xsl"/>
             <choice>
                 <when>
@@ -45,22 +42,16 @@
                     </setBody>
                 </when>
                 <when>
-                    <simple>${header.temperature} > 20</simple>
+                    <xpath>//temp > 20</xpath>
                     <inOnly uri="activemq:beach"/>
                     <setBody>
                         <constant>{"message": "Enjoy the sun!"}</constant>
                     </setBody>
                 </when>
-                <when>
-                    <simple>${header.temperature} &lt; 20</simple>
+                <otherwise>
                     <inOnly uri="activemq:ski"/>
                     <setBody>
                         <constant>{"message": "You go skiing!"}</constant>
-                    </setBody>
-                </when>
-                <otherwise>
-                    <setBody>
-                        <constant>{"message": "something went wrong."}</constant>
                     </setBody>
                 </otherwise>
             </choice>

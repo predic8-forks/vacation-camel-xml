@@ -16,3 +16,4 @@ target
 
 #project files from IntelliJ
 *.iml
+.idea
